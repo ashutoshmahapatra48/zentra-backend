@@ -11,17 +11,35 @@ export async function streamAnswer(
 ) {
   if (!client) throw new ApiError(503, "Chat is not configured. Add OPENAI_API_KEY to the backend environment");
   try {
+    const startedAt = Date.now();
     const stream = await client.responses.create({ model: config.openaiModel, input: messages, stream: true });
     let content = "";
+    let usage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
     for await (const event of stream) {
       if (event.type === "response.output_text.delta") {
         content += event.delta;
         onDelta(event.delta);
       }
+      if (event.type === "response.completed") {
+        const responseUsage = event.response.usage;
+        if (responseUsage) {
+          usage = {
+            inputTokens: responseUsage.input_tokens,
+            outputTokens: responseUsage.output_tokens,
+            totalTokens: responseUsage.total_tokens,
+          };
+        }
+      }
     }
     content = content.trim();
     if (!content) throw new ApiError(502, "The model returned an empty response. Please try again");
-    return content;
+    return {
+      content,
+      model: config.openaiModel,
+      usage: usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      latency: Date.now() - startedAt,
+      status: "completed" as const,
+    };
   } catch (error) {
     if (error instanceof ApiError) throw error;
     console.error("OpenAI request failed:", error);

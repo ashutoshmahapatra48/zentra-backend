@@ -31,7 +31,15 @@ async function continueConversation(userId: string, rawId: string, content: stri
 /** Builds bounded model context and stores the completed assistant response. */
 async function createAssistantReply(conversationId: string, onDelta: (delta: string) => void) {
   const history = await Message.find({ conversationId }).sort({ createdAt: -1 }).limit(20).lean();
-  const content = await streamAnswer(history.reverse().map(({ role, content }) => ({ role, content })), onDelta);
-  const message = await Message.create({ conversationId, role: "assistant", content });
+  const completion = await streamAnswer(history.reverse().map(({ role, content }) => ({ role, content })), onDelta);
+  const message = await Message.create({
+    conversationId,
+    role: "assistant",
+    content: completion.content,
+    model: completion.model,
+    usage: completion.usage,
+    latency: completion.latency,
+    status: completion.status,
+  });
   return { conversationId, message };
 }
