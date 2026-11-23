@@ -101,17 +101,22 @@ export async function generateConversationTitle(
   try {
     const response = await client.responses.create({
       model: config.openaiModel,
-      instructions: "Write a concise chat title of 2 to 6 words. Return only the title, with no quotes or punctuation at the end.",
-      input: `User message:\n${userMessage.slice(0, 1500)}\n\nAssistant response:\n${assistantMessage.slice(0, 1500)}`,
-      max_output_tokens: 24,
+      instructions: "Summarize the conversation's main request as a specific, descriptive title of 2 to 6 words. Consider both messages, do not copy the user's opening words verbatim, and return only the title without quotes or explanation.",
+      input: `User's first message:\n${userMessage.slice(0, 1500)}\n\nAssistant's answer:\n${assistantMessage.slice(0, 1500)}`,
+      max_output_tokens: 48,
     });
     const title = response.output_text
       ?.split("\n")[0]
       .replace(/^\s*title:\s*/i, "")
       .replace(/^["'`#*\s]+|["'`*\s]+$/g, "")
+      .replace(/\s+/g, " ")
       .trim()
       .slice(0, 80);
-    return title || fallbackTitle;
+    if (!title) {
+      console.warn("Title model returned empty output; using the prompt-derived fallback title.");
+      return fallbackTitle;
+    }
+    return title;
   } catch (error) {
     console.error("Conversation title generation failed:", error);
     return fallbackTitle;
