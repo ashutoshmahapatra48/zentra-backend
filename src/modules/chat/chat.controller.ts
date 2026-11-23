@@ -10,8 +10,10 @@ export async function chat(req: Request, res: Response) {
   beginStream(res);
   try {
     const result = await service.sendMessage(req.userId!, parsed.data.conversationId, parsed.data.content, {
-      onStart: (conversationId) => sendEvent(res, "start", { conversationId }),
+      onStart: (conversationId, title) => sendEvent(res, "start", { conversationId, title }),
+      onTitle: (title) => sendEvent(res, "title", { title }),
       onDelta: (delta) => sendEvent(res, "delta", { delta }),
+      onTool: (name, status) => sendEvent(res, "tool", { name, status }),
     });
     sendEvent(res, "complete", { success: true, message: "Response generated", data: result });
     res.end();
